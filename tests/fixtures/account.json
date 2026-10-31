@@ -1,0 +1,228 @@
+{
+  "list_health_checks": {
+    "HealthChecks": [
+      {
+        "Id": "11111111-aaaa-4aaa-9aaa-111111111111",
+        "CallerReference": "api-https-2024",
+        "HealthCheckVersion": 3,
+        "HealthCheckConfig": {
+          "Type": "HTTPS",
+          "FullyQualifiedDomainName": "api.example.com",
+          "Port": 443,
+          "ResourcePath": "/healthz",
+          "RequestInterval": 30,
+          "FailureThreshold": 3
+        }
+      },
+      {
+        "Id": "22222222-bbbb-4bbb-9bbb-222222222222",
+        "CallerReference": "legacy-blog-check",
+        "HealthCheckVersion": 1,
+        "HealthCheckConfig": {
+          "Type": "HTTP",
+          "FullyQualifiedDomainName": "blog-old.example.com",
+          "IPAddress": "198.51.100.14",
+          "Port": 80,
+          "ResourcePath": "/",
+          "RequestInterval": 30,
+          "FailureThreshold": 3
+        }
+      },
+      {
+        "Id": "33333333-cccc-4ccc-9ccc-333333333333",
+        "CallerReference": "edge-calculated",
+        "HealthCheckVersion": 7,
+        "HealthCheckConfig": {
+          "Type": "CALCULATED",
+          "HealthThreshold": 3,
+          "ChildHealthChecks": [
+            "44444444-dddd-4ddd-9ddd-444444444444",
+            "55555555-eeee-4eee-9eee-555555555555"
+          ]
+        }
+      },
+      {
+        "Id": "44444444-dddd-4ddd-9ddd-444444444444",
+        "CallerReference": "edge-eu-west-1",
+        "HealthCheckVersion": 2,
+        "HealthCheckConfig": {
+          "Type": "HTTPS",
+          "FullyQualifiedDomainName": "eu.example.com",
+          "Port": 443,
+          "ResourcePath": "/healthz",
+          "RequestInterval": 30,
+          "FailureThreshold": 3
+        }
+      },
+      {
+        "Id": "55555555-eeee-4eee-9eee-555555555555",
+        "CallerReference": "edge-us-east-1",
+        "HealthCheckVersion": 2,
+        "HealthCheckConfig": {
+          "Type": "HTTPS",
+          "FullyQualifiedDomainName": "us.example.com",
+          "Port": 443,
+          "ResourcePath": "/healthz",
+          "RequestInterval": 30,
+          "FailureThreshold": 3
+        }
+      }
+    ],
+    "Marker": "",
+    "IsTruncated": false,
+    "MaxItems": "100"
+  },
+  "list_hosted_zones": {
+    "HostedZones": [
+      {
+        "Id": "/hostedzone/Z1EXAMPLE1111",
+        "Name": "example.com.",
+        "CallerReference": "example-com-zone",
+        "ResourceRecordSetCount": 12
+      },
+      {
+        "Id": "/hostedzone/Z2EXAMPLE2222",
+        "Name": "internal.example.net.",
+        "CallerReference": "internal-zone",
+        "ResourceRecordSetCount": 4
+      }
+    ],
+    "Marker": "",
+    "IsTruncated": false,
+    "MaxItems": "100"
+  },
+  "list_resource_record_sets": {
+    "Z1EXAMPLE1111": {
+      "ResourceRecordSets": [
+        {
+          "Name": "api.example.com.",
+          "Type": "A",
+          "SetIdentifier": "primary",
+          "Failover": "PRIMARY",
+          "TTL": 60,
+          "HealthCheckId": "11111111-aaaa-4aaa-9aaa-111111111111",
+          "ResourceRecords": [{ "Value": "203.0.113.10" }]
+        },
+        {
+          "Name": "api.example.com.",
+          "Type": "A",
+          "SetIdentifier": "secondary",
+          "Failover": "SECONDARY",
+          "TTL": 60,
+          "ResourceRecords": [{ "Value": "203.0.113.20" }]
+        },
+        {
+          "Name": "www.example.com.",
+          "Type": "A",
+          "SetIdentifier": "www-primary",
+          "Failover": "PRIMARY",
+          "TTL": 300,
+          "ResourceRecords": [{ "Value": "203.0.113.30" }]
+        },
+        {
+          "Name": "www.example.com.",
+          "Type": "A",
+          "SetIdentifier": "www-secondary",
+          "Failover": "SECONDARY",
+          "TTL": 300,
+          "ResourceRecords": [{ "Value": "203.0.113.40" }]
+        },
+        {
+          "Name": "shop.example.com.",
+          "Type": "A",
+          "SetIdentifier": "shop-primary",
+          "Failover": "PRIMARY",
+          "AliasTarget": {
+            "HostedZoneId": "Z35SXDOTRQ7X7K",
+            "DNSName": "shop-alb-1234567890.eu-west-1.elb.amazonaws.com.",
+            "EvaluateTargetHealth": true
+          }
+        },
+        {
+          "Name": "edge.example.com.",
+          "Type": "A",
+          "SetIdentifier": "edge-calc",
+          "TTL": 60,
+          "HealthCheckId": "33333333-cccc-4ccc-9ccc-333333333333",
+          "ResourceRecords": [{ "Value": "203.0.113.50" }]
+        }
+      ],
+      "IsTruncated": false,
+      "MaxItems": "300"
+    },
+    "Z2EXAMPLE2222": {
+      "ResourceRecordSets": [
+        {
+          "Name": "eu.internal.example.net.",
+          "Type": "A",
+          "SetIdentifier": "eu",
+          "TTL": 60,
+          "HealthCheckId": "44444444-dddd-4ddd-9ddd-444444444444",
+          "ResourceRecords": [{ "Value": "10.0.1.10" }]
+        }
+      ],
+      "IsTruncated": false,
+      "MaxItems": "300"
+    }
+  },
+  "describe_alarms": {
+    "MetricAlarms": [
+      {
+        "AlarmName": "r53-healthcheck-api",
+        "AlarmArn": "arn:aws:cloudwatch:us-east-1:111122223333:alarm:r53-healthcheck-api",
+        "Namespace": "AWS/Route53",
+        "MetricName": "HealthCheckStatus",
+        "Dimensions": [
+          {
+            "Name": "HealthCheckId",
+            "Value": "11111111-aaaa-4aaa-9aaa-111111111111"
+          }
+        ],
+        "Statistic": "Minimum",
+        "Period": 60,
+        "EvaluationPeriods": 2,
+        "Threshold": 1.0,
+        "ComparisonOperator": "LessThanThreshold"
+      },
+      {
+        "AlarmName": "edge-calculated-math",
+        "AlarmArn": "arn:aws:cloudwatch:us-east-1:111122223333:alarm:edge-calculated-math",
+        "ComparisonOperator": "LessThanThreshold",
+        "EvaluationPeriods": 2,
+        "Threshold": 1.0,
+        "Metrics": [
+          {
+            "Id": "m1",
+            "MetricStat": {
+              "Metric": {
+                "Namespace": "AWS/Route53",
+                "MetricName": "HealthCheckStatus",
+                "Dimensions": [
+                  {
+                    "Name": "HealthCheckId",
+                    "Value": "33333333-cccc-4ccc-9ccc-333333333333"
+                  }
+                ]
+              },
+              "Period": 60,
+              "Stat": "Minimum"
+            },
+            "ReturnData": true
+          }
+        ]
+      },
+      {
+        "AlarmName": "unrelated-cpu-alarm",
+        "AlarmArn": "arn:aws:cloudwatch:us-east-1:111122223333:alarm:unrelated-cpu-alarm",
+        "Namespace": "AWS/EC2",
+        "MetricName": "CPUUtilization",
+        "Dimensions": [{ "Name": "InstanceId", "Value": "i-0abc123" }],
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 90.0,
+        "ComparisonOperator": "GreaterThanThreshold"
+      }
+    ]
+  }
+}

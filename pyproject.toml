@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aws-r53-healthcheck-audit"
+version = "0.1.0"
+description = "Join Route 53 health checks to the records and alarms that reference them"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Michael Tarassov", email = "michael@tarassov.me" }]
+keywords = ["aws", "route53", "dns", "health-checks", "audit", "cli"]
+dependencies = ["boto3>=1.28"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+aws-r53-healthcheck-audit = "aws_r53_healthcheck_audit.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/moveeeax/aws-r53-healthcheck-audit"
+
+[tool.setuptools.packages.find]
+include = ["aws_r53_healthcheck_audit*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+/build/
+/dist/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+
+# Never ignore the recorded API fixtures or the example payloads.
+!tests/fixtures/**
+!examples/**
