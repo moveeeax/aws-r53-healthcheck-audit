@@ -1,7 +1,7 @@
 # aws-r53-healthcheck-audit
 
 [![ci](https://github.com/moveeeax/aws-r53-healthcheck-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/moveeeax/aws-r53-healthcheck-audit/actions/workflows/ci.yml)
-[![python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://www.python.org/)
+[![python](https://img.shields.io/badge/python-3.11%20%E2%80%93%203.15-blue)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Joins Route 53 health checks to the record sets and CloudWatch alarms that reference them, and
