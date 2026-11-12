@@ -139,6 +139,34 @@
           }
         },
         {
+          "Name": "app.example.com.",
+          "Type": "A",
+          "SetIdentifier": "app-blue",
+          "Weight": 50,
+          "TTL": 60,
+          "HealthCheckId": "11111111-aaaa-4aaa-9aaa-111111111111",
+          "ResourceRecords": [{ "Value": "203.0.113.60" }]
+        },
+        {
+          "Name": "app.example.com.",
+          "Type": "A",
+          "SetIdentifier": "app-green",
+          "Weight": 50,
+          "TTL": 60,
+          "ResourceRecords": [{ "Value": "203.0.113.70" }]
+        },
+        {
+          "Name": "app.example.com.",
+          "Type": "A",
+          "SetIdentifier": "app-alb",
+          "Weight": 0,
+          "AliasTarget": {
+            "HostedZoneId": "Z35SXDOTRQ7X7K",
+            "DNSName": "app-alb-1234567890.eu-west-1.elb.amazonaws.com.",
+            "EvaluateTargetHealth": true
+          }
+        },
+        {
           "Name": "edge.example.com.",
           "Type": "A",
           "SetIdentifier": "edge-calc",

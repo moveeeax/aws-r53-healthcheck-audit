@@ -19,6 +19,7 @@ remediation command.
 | --- | --- | --- |
 | `FAILOVER_WITHOUT_HEALTHCHECK` | high | a `FAILOVER` `PRIMARY` record carries no `HealthCheckId` (and is not an alias with `EvaluateTargetHealth`) |
 | `CALCULATED_THRESHOLD_UNREACHABLE` | high | a `CALCULATED` check's `HealthThreshold` exceeds its `ChildHealthChecks` count, so it can never be healthy |
+| `ROUTING_SET_PARTIAL_HEALTHCHECK` | medium | in a weighted, latency, geolocation, geoproximity, IP-based, multivalue or failover set (same zone, name, type and routing policy), some records are checked and others are not; Route 53 treats the unchecked ones as always healthy. Alias records with `EvaluateTargetHealth` count as checked. An unchecked failover `PRIMARY` is left to `FAILOVER_WITHOUT_HEALTHCHECK`, so in a failover pair this flags an unchecked `SECONDARY` |
 | `HEALTHCHECK_ORPHANED` | medium | no record set, no calculated parent and no CloudWatch alarm reference the check |
 | `HEALTHCHECK_NO_ALARM` | low | records use the check but nothing alarms on its `HealthCheckStatus` |
 
@@ -27,14 +28,15 @@ remediation command.
 Three reads, one join, no writes:
 
 1. `ListHealthChecks` (paginated) for every check and its config.
-2. `ListHostedZones` plus `ListResourceRecordSets` per zone for every record that carries a
-   `HealthCheckId`, a `Failover` role or an alias target.
+2. `ListHostedZones` plus `ListResourceRecordSets` per zone for every record, with its
+   `HealthCheckId`, alias target and routing policy (read from `Weight`, `Region`, `GeoLocation`,
+   `GeoProximityLocation`, `CidrRoutingConfig`, `Failover` or `MultiValueAnswer`).
 3. `DescribeAlarms` for metric alarms over `AWS/Route53` / `HealthCheckStatus`, including alarms
    that reach the metric through metric math (`Metrics[].MetricStat`).
 
 Then each health check is reported once with the records that reference it, and each unprotected
 failover record once with its zone - a check shared by ten records is one finding listing ten
-references, not ten findings.
+references, not ten findings. A routing set with unchecked members is one finding listing them.
 
 Route 53 is global, so there is no `--region` for the Route 53 calls. Health-check metrics are
 published in `us-east-1`, which is where alarms are read from unless `--alarm-region` says
@@ -66,13 +68,15 @@ SEVERITY  RULE                              RESOURCE                            
 HIGH      CALCULATED_THRESHOLD_UNREACHABLE  33333333-cccc-4ccc-9ccc-333333333333            calculated check needs 3 healthy children but has 2 - it can never report healthy
 HIGH      FAILOVER_WITHOUT_HEALTHCHECK      Z1EXAMPLE1111/www.example.com. A [www-primary]  FAILOVER PRIMARY record www.example.com. A [www-primary] in zone example.com. carries no HealthCheckId, so Route 53 can never fail over to the secondary
 MEDIUM    HEALTHCHECK_ORPHANED              22222222-bbbb-4bbb-9bbb-222222222222            HTTP health check for blog-old.example.com (198.51.100.14) is referenced by no record set, no calculated check and no CloudWatch alarm - it bills for nothing
+MEDIUM    ROUTING_SET_PARTIAL_HEALTHCHECK   Z1EXAMPLE1111/api.example.com. A FAILOVER       FAILOVER records api.example.com. A in zone example.com.: 1 of 2 carry a health check, unchecked: secondary - Route 53 treats an unchecked record as always healthy and keeps answering with it when its endpoint is down
+MEDIUM    ROUTING_SET_PARTIAL_HEALTHCHECK   Z1EXAMPLE1111/app.example.com. A WEIGHTED       WEIGHTED records app.example.com. A in zone example.com.: 2 of 3 carry a health check, unchecked: app-green - Route 53 treats an unchecked record as always healthy and keeps answering with it when its endpoint is down
 LOW       HEALTHCHECK_NO_ALARM              44444444-dddd-4ddd-9ddd-444444444444            health check for eu.example.com is used by 1 record set(s) but has no CloudWatch alarm in us-east-1 - a flip to unhealthy pages nobody
 
 fix 22222222-bbbb-4bbb-9bbb-222222222222:
   aws route53 delete-health-check --health-check-id 22222222-bbbb-4bbb-9bbb-222222222222
 ...
 
-4 finding(s).
+6 finding(s).
 ```
 
 ### Flags

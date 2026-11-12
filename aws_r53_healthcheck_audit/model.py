@@ -54,6 +54,12 @@ class RecordSet:
     health_check_id: str | None = None
     is_alias: bool = False
     evaluate_target_health: bool = False
+    routing_policy: str | None = None
+
+    @property
+    def covered(self) -> bool:
+        """Route 53 can tell whether this record is healthy."""
+        return bool(self.health_check_id) or (self.is_alias and self.evaluate_target_health)
 
     @property
     def label(self) -> str:

@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from aws_r53_healthcheck_audit.collect import bare_zone_id  # noqa: E402
+from aws_r53_healthcheck_audit.collect import bare_zone_id, routing_policy  # noqa: E402
 from aws_r53_healthcheck_audit.model import HealthCheck, Inventory, RecordSet  # noqa: E402
 from aws_r53_healthcheck_audit.report import render  # noqa: E402
 from aws_r53_healthcheck_audit.rules import evaluate, should_fail  # noqa: E402
@@ -44,6 +44,7 @@ def load_inventory() -> Inventory:
                     health_check_id=raw.get("HealthCheckId"),
                     is_alias=bool(alias),
                     evaluate_target_health=bool(alias.get("EvaluateTargetHealth")),
+                    routing_policy=routing_policy(raw),
                 )
             )
     alarms = set()
@@ -63,7 +64,7 @@ def main() -> int:
     fmt = sys.argv[1] if len(sys.argv) > 1 else "table"
     findings = evaluate(load_inventory())
     print(render(findings, fmt))
-    assert len(findings) == 4, f"fixture should yield 4 findings, got {len(findings)}"
+    assert len(findings) == 6, f"fixture should yield 6 findings, got {len(findings)}"
     return 1 if should_fail(findings, "medium") else 0
 
 

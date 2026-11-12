@@ -1,6 +1,6 @@
 """The collector joins three APIs; these tests pin the join, offline."""
 
-from aws_r53_healthcheck_audit.collect import bare_zone_id
+from aws_r53_healthcheck_audit.collect import bare_zone_id, routing_policy
 
 from .conftest import stubbed_inventory
 
@@ -57,3 +57,24 @@ def test_records_using_and_parents_of(inventory):
     assert [r.name for r in users] == ["eu.internal.example.net."]
     parents = inventory.parents_of("55555555-eeee-4eee-9eee-555555555555")
     assert [p.id for p in parents] == ["33333333-cccc-4ccc-9ccc-333333333333"]
+
+
+def test_routing_policy_is_captured(inventory):
+    policies = {(r.name, r.set_identifier): r.routing_policy for r in inventory.records}
+    assert policies[("app.example.com.", "app-green")] == "WEIGHTED"
+    assert policies[("api.example.com.", "secondary")] == "FAILOVER"
+    assert policies[("edge.example.com.", "edge-calc")] is None
+
+
+def test_routing_policy_from_raw_fields():
+    assert routing_policy({"Weight": 0}) == "WEIGHTED"
+    assert routing_policy({"Region": "eu-west-1"}) == "LATENCY"
+    assert routing_policy({"GeoLocation": {"CountryCode": "*"}}) == "GEOLOCATION"
+    assert routing_policy({"GeoProximityLocation": {"AWSRegion": "us-east-1"}}) == "GEOPROXIMITY"
+    assert routing_policy({"CidrRoutingConfig": {"CollectionId": "c", "LocationName": "l"}}) == (
+        "IP_BASED"
+    )
+    assert routing_policy({"Failover": "SECONDARY"}) == "FAILOVER"
+    assert routing_policy({"MultiValueAnswer": True}) == "MULTIVALUE"
+    assert routing_policy({"MultiValueAnswer": False}) is None
+    assert routing_policy({"Name": "simple.example.com.", "Type": "A"}) is None
