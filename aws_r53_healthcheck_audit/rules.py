@@ -1,4 +1,4 @@
-"""The four findings this tool reports, plus severity bookkeeping."""
+"""The five findings this tool reports, plus severity bookkeeping."""
 
 from __future__ import annotations
 
@@ -12,12 +12,14 @@ HEALTHCHECK_ORPHANED = "HEALTHCHECK_ORPHANED"
 FAILOVER_WITHOUT_HEALTHCHECK = "FAILOVER_WITHOUT_HEALTHCHECK"
 CALCULATED_THRESHOLD_UNREACHABLE = "CALCULATED_THRESHOLD_UNREACHABLE"
 HEALTHCHECK_NO_ALARM = "HEALTHCHECK_NO_ALARM"
+ROUTING_SET_PARTIAL_HEALTHCHECK = "ROUTING_SET_PARTIAL_HEALTHCHECK"
 
 ALL_RULES = (
     HEALTHCHECK_ORPHANED,
     FAILOVER_WITHOUT_HEALTHCHECK,
     CALCULATED_THRESHOLD_UNREACHABLE,
     HEALTHCHECK_NO_ALARM,
+    ROUTING_SET_PARTIAL_HEALTHCHECK,
 )
 
 RULE_SEVERITY = {
@@ -25,6 +27,7 @@ RULE_SEVERITY = {
     FAILOVER_WITHOUT_HEALTHCHECK: "high",
     CALCULATED_THRESHOLD_UNREACHABLE: "high",
     HEALTHCHECK_NO_ALARM: "low",
+    ROUTING_SET_PARTIAL_HEALTHCHECK: "medium",
 }
 
 
@@ -99,10 +102,8 @@ def _orphaned(inv: Inventory) -> list[Finding]:
 def _failover_unprotected(inv: Inventory) -> list[Finding]:
     findings = []
     for record in inv.records:
-        if (record.failover or "").upper() != "PRIMARY" or record.health_check_id:
-            continue
-        if record.is_alias and record.evaluate_target_health:
-            # Alias failover evaluates the target's own health; no HealthCheckId needed.
+        if (record.failover or "").upper() != "PRIMARY" or record.covered:
+            # An alias with EvaluateTargetHealth needs no HealthCheckId.
             continue
         findings.append(
             Finding(
@@ -174,6 +175,59 @@ def _missing_alarm(inv: Inventory) -> list[Finding]:
     return findings
 
 
+def _partial_routing_set(inv: Inventory) -> list[Finding]:
+    """Route 53 treats a record with no health check as always healthy.
+
+    Records answer as one group when they share zone, name, type and routing policy. If some
+    members are checked and others are not, the unchecked ones keep getting traffic when their
+    endpoint is down. An uncovered FAILOVER PRIMARY is FAILOVER_WITHOUT_HEALTHCHECK's finding,
+    so in a failover group only the secondary is listed here.
+    """
+    groups: dict[tuple, list[RecordSet]] = {}
+    for record in inv.records:
+        if record.routing_policy:
+            key = (record.zone_id, record.name, record.type, record.routing_policy)
+            groups.setdefault(key, []).append(record)
+
+    findings = []
+    for (zone_id, name, rtype, policy), members in groups.items():
+        if all(r.covered for r in members) or not any(r.covered for r in members):
+            continue
+        uncovered = [
+            r
+            for r in members
+            if not r.covered
+            and not (policy == "FAILOVER" and (r.failover or "").upper() == "PRIMARY")
+        ]
+        if not uncovered:
+            continue
+        ids = ", ".join(r.set_identifier or "-" for r in uncovered)
+        findings.append(
+            Finding(
+                rule=ROUTING_SET_PARTIAL_HEALTHCHECK,
+                severity=RULE_SEVERITY[ROUTING_SET_PARTIAL_HEALTHCHECK],
+                resource=f"{zone_id}/{name} {rtype} {policy}",
+                detail=(
+                    f"{policy} records {name} {rtype} in zone {members[0].zone_name}: "
+                    f"{len(members) - len(uncovered)} of {len(members)} carry a health check, "
+                    f"unchecked: {ids} - Route 53 treats an unchecked record as always "
+                    "healthy and keeps answering with it when its endpoint is down"
+                ),
+                remediation=(
+                    f"aws route53 change-resource-record-sets --hosted-zone-id {zone_id} "
+                    "--change-batch file://health-checks.json  # UPSERT the unchecked records "
+                    f"({ids}) with a HealthCheckId added (alias records: set "
+                    "AliasTarget.EvaluateTargetHealth to true instead)"
+                ),
+                zone_id=zone_id,
+                zone_name=members[0].zone_name,
+                record=f"{name} {rtype}",
+                references=[r.label for r in uncovered],
+            )
+        )
+    return findings
+
+
 def evaluate(inventory: Inventory, ignore: set[str] | None = None) -> list[Finding]:
     """Run every rule not named in `ignore`, worst severity first."""
     skip = {r.strip().upper() for r in (ignore or set()) if r.strip()}
@@ -183,6 +237,7 @@ def evaluate(inventory: Inventory, ignore: set[str] | None = None) -> list[Findi
         (FAILOVER_WITHOUT_HEALTHCHECK, _failover_unprotected),
         (CALCULATED_THRESHOLD_UNREACHABLE, _calculated_unreachable),
         (HEALTHCHECK_NO_ALARM, _missing_alarm),
+        (ROUTING_SET_PARTIAL_HEALTHCHECK, _partial_routing_set),
     ):
         if rule in skip:
             continue

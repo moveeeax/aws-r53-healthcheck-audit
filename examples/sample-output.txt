@@ -2,6 +2,8 @@ SEVERITY  RULE                              RESOURCE                            
 HIGH      CALCULATED_THRESHOLD_UNREACHABLE  33333333-cccc-4ccc-9ccc-333333333333            calculated check needs 3 healthy children but has 2 - it can never report healthy
 HIGH      FAILOVER_WITHOUT_HEALTHCHECK      Z1EXAMPLE1111/www.example.com. A [www-primary]  FAILOVER PRIMARY record www.example.com. A [www-primary] in zone example.com. carries no HealthCheckId, so Route 53 can never fail over to the secondary
 MEDIUM    HEALTHCHECK_ORPHANED              22222222-bbbb-4bbb-9bbb-222222222222            HTTP health check for blog-old.example.com (198.51.100.14) is referenced by no record set, no calculated check and no CloudWatch alarm - it bills for nothing
+MEDIUM    ROUTING_SET_PARTIAL_HEALTHCHECK   Z1EXAMPLE1111/api.example.com. A FAILOVER       FAILOVER records api.example.com. A in zone example.com.: 1 of 2 carry a health check, unchecked: secondary - Route 53 treats an unchecked record as always healthy and keeps answering with it when its endpoint is down
+MEDIUM    ROUTING_SET_PARTIAL_HEALTHCHECK   Z1EXAMPLE1111/app.example.com. A WEIGHTED       WEIGHTED records app.example.com. A in zone example.com.: 2 of 3 carry a health check, unchecked: app-green - Route 53 treats an unchecked record as always healthy and keeps answering with it when its endpoint is down
 LOW       HEALTHCHECK_NO_ALARM              44444444-dddd-4ddd-9ddd-444444444444            health check for eu.example.com is used by 1 record set(s) but has no CloudWatch alarm in us-east-1 - a flip to unhealthy pages nobody
 
 fix 33333333-cccc-4ccc-9ccc-333333333333:
@@ -10,7 +12,11 @@ fix Z1EXAMPLE1111/www.example.com. A [www-primary]:
   aws route53 change-resource-record-sets --hosted-zone-id Z1EXAMPLE1111 --change-batch '{"Changes":[{"Action":"UPSERT","ResourceRecordSet":{"Name":"www.example.com.","Type":"A","SetIdentifier":"www-primary","Failover":"PRIMARY","HealthCheckId":"<health-check-id>","TTL":60,"ResourceRecords":[{"Value":"<current-value>"}]}}]}'
 fix 22222222-bbbb-4bbb-9bbb-222222222222:
   aws route53 delete-health-check --health-check-id 22222222-bbbb-4bbb-9bbb-222222222222
+fix Z1EXAMPLE1111/api.example.com. A FAILOVER:
+  aws route53 change-resource-record-sets --hosted-zone-id Z1EXAMPLE1111 --change-batch file://health-checks.json  # UPSERT the unchecked records (secondary) with a HealthCheckId added (alias records: set AliasTarget.EvaluateTargetHealth to true instead)
+fix Z1EXAMPLE1111/app.example.com. A WEIGHTED:
+  aws route53 change-resource-record-sets --hosted-zone-id Z1EXAMPLE1111 --change-batch file://health-checks.json  # UPSERT the unchecked records (app-green) with a HealthCheckId added (alias records: set AliasTarget.EvaluateTargetHealth to true instead)
 fix 44444444-dddd-4ddd-9ddd-444444444444:
   aws cloudwatch put-metric-alarm --region us-east-1 --alarm-name r53-healthcheck-44444444-dddd-4ddd-9ddd-444444444444 --namespace AWS/Route53 --metric-name HealthCheckStatus --dimensions Name=HealthCheckId,Value=44444444-dddd-4ddd-9ddd-444444444444 --statistic Minimum --period 60 --evaluation-periods 2 --threshold 1 --comparison-operator LessThanThreshold --treat-missing-data breaching
 
-4 finding(s).
+6 finding(s).

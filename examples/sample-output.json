@@ -2,8 +2,8 @@
   "counts": {
     "high": 2,
     "low": 1,
-    "medium": 1,
-    "total": 4
+    "medium": 3,
+    "total": 6
   },
   "findings": [
     {
@@ -44,6 +44,34 @@
       "severity": "medium",
       "zone_id": "",
       "zone_name": ""
+    },
+    {
+      "detail": "FAILOVER records api.example.com. A in zone example.com.: 1 of 2 carry a health check, unchecked: secondary - Route 53 treats an unchecked record as always healthy and keeps answering with it when its endpoint is down",
+      "health_check_id": "",
+      "record": "api.example.com. A",
+      "references": [
+        "api.example.com. A [secondary]"
+      ],
+      "remediation": "aws route53 change-resource-record-sets --hosted-zone-id Z1EXAMPLE1111 --change-batch file://health-checks.json  # UPSERT the unchecked records (secondary) with a HealthCheckId added (alias records: set AliasTarget.EvaluateTargetHealth to true instead)",
+      "resource": "Z1EXAMPLE1111/api.example.com. A FAILOVER",
+      "rule": "ROUTING_SET_PARTIAL_HEALTHCHECK",
+      "severity": "medium",
+      "zone_id": "Z1EXAMPLE1111",
+      "zone_name": "example.com."
+    },
+    {
+      "detail": "WEIGHTED records app.example.com. A in zone example.com.: 2 of 3 carry a health check, unchecked: app-green - Route 53 treats an unchecked record as always healthy and keeps answering with it when its endpoint is down",
+      "health_check_id": "",
+      "record": "app.example.com. A",
+      "references": [
+        "app.example.com. A [app-green]"
+      ],
+      "remediation": "aws route53 change-resource-record-sets --hosted-zone-id Z1EXAMPLE1111 --change-batch file://health-checks.json  # UPSERT the unchecked records (app-green) with a HealthCheckId added (alias records: set AliasTarget.EvaluateTargetHealth to true instead)",
+      "resource": "Z1EXAMPLE1111/app.example.com. A WEIGHTED",
+      "rule": "ROUTING_SET_PARTIAL_HEALTHCHECK",
+      "severity": "medium",
+      "zone_id": "Z1EXAMPLE1111",
+      "zone_name": "example.com."
     },
     {
       "detail": "health check for eu.example.com is used by 1 record set(s) but has no CloudWatch alarm in us-east-1 - a flip to unhealthy pages nobody",

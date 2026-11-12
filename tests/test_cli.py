@@ -25,7 +25,7 @@ def test_table_output_lists_every_finding(run):
     assert code == 1
     assert "SEVERITY" in out.out
     assert "HEALTHCHECK_ORPHANED" in out.out
-    assert "4 finding(s)." in out.out
+    assert "6 finding(s)." in out.out
     assert "aws route53 delete-health-check" in out.out
 
 
@@ -33,7 +33,7 @@ def test_json_output_is_parseable_and_counted(run):
     code, out = run("--format", "json")
     payload = json.loads(out.out)
     assert code == 1
-    assert payload["counts"] == {"total": 4, "high": 2, "medium": 1, "low": 1}
+    assert payload["counts"] == {"total": 6, "high": 2, "medium": 3, "low": 1}
     assert payload["findings"][0]["severity"] == "high"
 
 
@@ -41,7 +41,7 @@ def test_csv_output_has_a_header_and_one_row_per_finding(run):
     code, out = run("--format", "csv")
     rows = list(csv.DictReader(io.StringIO(out.out)))
     assert code == 1
-    assert len(rows) == 4
+    assert len(rows) == 6
     assert rows[0]["rule"]
     assert rows[0]["remediation"]
 
@@ -62,7 +62,7 @@ def test_fail_on_high_ignores_the_orphan(inventory, capsys):
 def test_fail_on_never_always_exits_zero(run):
     code, out = run("--fail-on", "never")
     assert code == 0
-    assert "4 finding(s)." in out.out
+    assert "6 finding(s)." in out.out
 
 
 def test_ignore_affects_the_exit_code(inventory, capsys):
@@ -73,7 +73,7 @@ def test_ignore_affects_the_exit_code(inventory, capsys):
     out = capsys.readouterr().out
     assert code == 0
     assert "FAILOVER_WITHOUT_HEALTHCHECK" not in out
-    assert "2 finding(s)." in out
+    assert "4 finding(s)." in out
 
 
 def test_unknown_rule_name_exits_two(capsys):

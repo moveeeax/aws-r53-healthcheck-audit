@@ -14,6 +14,27 @@ def bare_zone_id(zone_id: str) -> str:
     return zone_id.rsplit("/", 1)[-1]
 
 
+# ResourceRecordSet field that marks each non-simple routing policy.
+ROUTING_POLICY_FIELDS = (
+    ("Weight", "WEIGHTED"),
+    ("Region", "LATENCY"),
+    ("GeoLocation", "GEOLOCATION"),
+    ("GeoProximityLocation", "GEOPROXIMITY"),
+    ("CidrRoutingConfig", "IP_BASED"),
+    ("Failover", "FAILOVER"),
+    ("MultiValueAnswer", "MULTIVALUE"),
+)
+
+
+def routing_policy(raw: dict) -> str | None:
+    """The record's routing policy, or None for a simple record."""
+    for key, policy in ROUTING_POLICY_FIELDS:
+        value = raw.get(key)
+        if value is not None and value is not False:
+            return policy
+    return None
+
+
 def health_checks(route53) -> list[HealthCheck]:
     found: list[HealthCheck] = []
     for page in route53.get_paginator("list_health_checks").paginate():
@@ -58,6 +79,7 @@ def _zone_records(route53, zone_id: str, zone_name: str) -> list[RecordSet]:
                     health_check_id=raw.get("HealthCheckId"),
                     is_alias=bool(alias),
                     evaluate_target_health=bool(alias.get("EvaluateTargetHealth")),
+                    routing_policy=routing_policy(raw),
                 )
             )
     return records
